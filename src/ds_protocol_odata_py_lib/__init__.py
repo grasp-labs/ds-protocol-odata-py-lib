@@ -17,5 +17,7 @@ Example
 
 from importlib.metadata import version
 
-__version__ = version("{{PROJECT_NAME}}")
+PACKAGE_NAME = "ds-protocol-odata-py-lib"
+
+__version__ = version(PACKAGE_NAME)
 __all__ = ["__version__"]
