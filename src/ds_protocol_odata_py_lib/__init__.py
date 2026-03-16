@@ -14,8 +14,10 @@ Example
 
     print(f"Package version: {__version__}")
 """
+
 from importlib.metadata import version
 
+PACKAGE_NAME = "ds-protocol-odata-py-lib"
 
-__version__ = version("{{PROJECT_NAME}}")
+__version__ = version(PACKAGE_NAME)
 __all__ = ["__version__"]
