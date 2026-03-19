@@ -17,10 +17,10 @@ license = "Apache-2.0"
 license-files = ["LICENSE-APACHE"]
 keywords = ["ds", "python"]
 authors = [
-    {name = "{{AUTHOR_NAME}}", email = "{{AUTHOR_EMAIL}}"}
+    {name = "Grasp Labs AS", email = "hello@grasplabs.com"}
 ]
 maintainers = [
-    {name = "{{AUTHOR_NAME}}", email = "{{AUTHOR_EMAIL}}"}
+    {name = "Grasp Labs AS", email = "hello@grasplabs.com"}
 ]
 classifiers = [
   "Programming Language :: Python :: 3",
@@ -35,10 +35,10 @@ classifiers = [
 readme = "PyPI.md"
 
 [project.urls]
-Documentation = "https://grasp-labs.github.io/{{GITHUB_REPO}}/"
-Repository = "https://github.com/grasp-labs/{{GITHUB_REPO}}/"
-Issues = "https://github.com/grasp-labs/{{GITHUB_REPO}}/issues/"
-Changelog = "https://github.com/grasp-labs/{{GITHUB_REPO}}/releases"
+Documentation = "https://grasp-labs.github.io/ds-protocol-odata-py-lib/"
+Repository = "https://github.com/grasp-labs/ds-protocol-odata-py-lib/"
+Issues = "https://github.com/grasp-labs/ds-protocol-odata-py-lib/issues/"
+Changelog = "https://github.com/grasp-labs/ds-protocol-odata-py-lib/releases"
 
 [project.entry-points."ds.protocols"]
 odata = "ds_protocol_odata_py_lib"
