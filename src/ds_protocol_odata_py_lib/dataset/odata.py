@@ -156,8 +156,6 @@ class OdataDataset(
         _next = False
         while self.settings.pagination_url:
             try:
-                print(self.settings.pagination_url)
-                print(self.settings.params)
                 req = requests.Request(
                     method="GET",
                     url=self.settings.pagination_url,
@@ -170,10 +168,10 @@ class OdataDataset(
                 response.raise_for_status()
 
                 # Inspect the response.
-                data: dict[str, str] = response.json()
+                response_content: dict[str, str] = response.json()
 
-                if data and self.deserializer:
-                    deserialized_data = self.deserializer(data["value"])
+                if response_content and self.deserializer:
+                    deserialized_data = self.deserializer(response_content["value"])
                     result.append(deserialized_data)
                     logger.info(
                         "Fetched %s records from %s",
@@ -184,11 +182,11 @@ class OdataDataset(
                 if not self.settings.paginate:
                     break
 
-                if not data.get("@odata.nextLink"):
+                if not response_content.get("@odata.nextLink"):
                     logger.debug("No more pages to fetch. Terminating data fetch loop.")
 
                 # Update the pagination URL
-                self.settings.pagination_url = data.get("@odata.nextLink")
+                self.settings.pagination_url = response_content.get("@odata.nextLink")
                 _next = True
 
             except requests.exceptions.HTTPError as exc:
@@ -231,9 +229,13 @@ class OdataDataset(
         logger.debug(f"HTTP Response Info: {self._response_info(response)}")
         response.raise_for_status()
 
-        if self.deserializer and response.content:
+        if not response.content:
+            self.output = pd.DataFrame()
+
+        elif self.deserializer and response.content:
             logger.debug("Deserializing response content.")
-            self.output = self.deserializer(response.content)
+            response_content = response.json()
+            self.output = self.deserializer(response_content["value"])
 
         logger.info(
             "Successfully created (%s) records for %s.",
@@ -262,10 +264,9 @@ class OdataDataset(
             raise CreateError("Data serializer not provided")
         payload = self.serializer(self.input)
 
-        url = self._build_resource_url(payload)
         req = requests.Request(
             method="PATCH",
-            url=url,
+            url=self.settings.url,
             data=payload,
         )
         prepared = self.linked_service.connection.session.prepare_request(req)
@@ -278,9 +279,12 @@ class OdataDataset(
         logger.debug(f"HTTP Response Info: {self._response_info(response)}")
         response.raise_for_status()
 
+        if not response.content:
+            self.output = pd.DataFrame()
         if self.deserializer and response.content:
             logger.debug("Deserializing response content.")
-            self.input = self.deserializer(response.content)
+            response_content = response.json()
+            self.output = self.deserializer(response_content["value"])
 
         logger.info(
             "Successfully updated (%s) records for %s.",
