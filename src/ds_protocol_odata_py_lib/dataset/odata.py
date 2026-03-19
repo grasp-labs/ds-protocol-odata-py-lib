@@ -233,7 +233,7 @@ class OdataDataset(
 
         if self.deserializer and response.content:
             logger.debug("Deserializing response content.")
-            self.input = self.deserializer(response.content)
+            self.output = self.deserializer(response.content)
 
         logger.info(
             "Successfully created (%s) records for %s.",

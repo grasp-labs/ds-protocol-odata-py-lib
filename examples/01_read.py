@@ -35,6 +35,3 @@ dataset = OdataDataset(
 )
 dataset.read()
 print(dataset.output)
-# dataset.input = dataset.output
-# dataset.update()
-# print(dataset.input)
