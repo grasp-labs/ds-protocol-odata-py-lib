@@ -10,9 +10,7 @@ from ds_protocol_http_py_lib import HttpLinkedService
 from ds_protocol_http_py_lib.dataset.http import HttpLinkedServiceType
 from ds_resource_plugin_py_lib.common.resource.dataset import DatasetSettings, DatasetStorageFormatType, TabularDataset
 from ds_resource_plugin_py_lib.common.resource.dataset.errors import CreateError, MismatchedLinkedServiceError, ReadError
-from ds_resource_plugin_py_lib.common.resource.linked_service.errors import (
-    ConnectionError,
-)
+from ds_resource_plugin_py_lib.common.resource.errors import NotSupportedError
 from ds_resource_plugin_py_lib.common.serde.deserialize import PandasDeserializer
 from ds_resource_plugin_py_lib.common.serde.serialize import PandasSerializer
 
@@ -25,7 +23,6 @@ logger = Logger.get_logger(__name__, package=True)
 class OdataDatasetSettings(DatasetSettings):
     url: str
     primary_keys: list[str] | None = None
-    headers: dict[str, str] | None = None
 
     # Pagination properties
     paginate: bool | None = False
@@ -43,10 +40,6 @@ class OdataDatasetSettings(DatasetSettings):
     count: bool | None = None
 
     def __post_init__(self) -> None:
-        """
-        Post initialization method to set the endpoint for the dataset.
-        """
-        self.pagination_url = self.url
         raw_params = {
             "$top": self.top,
             "$filter": self.filter,
@@ -91,8 +84,7 @@ class OdataDataset(
     )
 
     def __post_init__(self) -> None:
-        self.linked_service.connection = self.linked_service.connect()
-        self.linked_service.connection.session.headers.update(self.settings.headers or {})
+        self.linked_service.connect()
 
         if not isinstance(self.linked_service, HttpLinkedService):
             raise MismatchedLinkedServiceError("Linked service must be of type HTTP")
@@ -149,14 +141,13 @@ class OdataDataset(
             "content": response.content[:500] if response.content else None,
         }
 
-    def read(self, **_kwargs: dict[str, Any]) -> None:
+    def read(self) -> None:
         """
         Read Odata dataset.
-        :param _kwargs: dict[str, str]
-        :return: List[dict[str, str]]
+
+        Returns:
+            None
         """
-        if self.linked_service.connection is None:
-            raise ConnectionError(message="Connection is not initialized.") from None
 
         logger.info(f"Sending GET request to {self.settings.url}")
 
@@ -180,7 +171,6 @@ class OdataDataset(
 
                 # Inspect the response.
                 data: dict[str, str] = response.json()
-                print(data)
 
                 if data and self.deserializer:
                     deserialized_data = self.deserializer(data["value"])
@@ -213,31 +203,30 @@ class OdataDataset(
             self.settings.url,
         )
 
-    def create(self, **_kwargs: dict[str, Any]) -> None:
+    def create(self) -> None:
         """
         Create entity using Odata.
+
+        Returns:
+            None
         """
         logger.info(f"Sending POST request to {self.settings.url}")
 
         if not isinstance(self.input, pd.DataFrame) or self.input.empty:
             raise Exception("Content data must be provided for creation.")
 
-        if self.prepare_write_callback:
-            logger.debug("Preparing data for write")
-            payload = self.prepare_write_callback(self.input)
-        else:
-            logger.debug("Serializing data for write")
-            if not self.serializer:
-                raise CreateError("Data serializer not provided")
-            payload = self.serializer(self.input)
+        logger.debug("Serializing data for write")
+        if not self.serializer:
+            raise CreateError("Data serializer not provided")
+        payload = self.serializer(self.input)
 
         req = requests.Request(
             method="POST",
             url=self.settings.url,
             data=payload,
         )
-        prepared = self.linked_service.connection.session.prepare_request(req)  # type: ignore
-        response = self.linked_service.connection.session.send(prepared)  # type: ignore
+        prepared = self.linked_service.connection.session.prepare_request(req)
+        response = self.linked_service.connection.session.send(prepared)
 
         logger.debug(f"HTTP Response Info: {self._response_info(response)}")
         response.raise_for_status()
@@ -252,11 +241,12 @@ class OdataDataset(
             self.settings.url,
         )
 
-    def update(self, **_kwargs: dict[str, Any]) -> None:
+    def update(self) -> None:
         """
         Update entity using Odata.
-        :param _kwargs: dict[str, str]
-        :return: None
+
+        Returns:
+            None
         """
         logger.info(f"Sending PUT request to {self.settings.url}")
 
@@ -267,14 +257,10 @@ class OdataDataset(
             logger.warning("No content data provided for update.")
             return
 
-        if self.prepare_write_callback:
-            logger.debug("Preparing data for update")
-            payload = self.prepare_write_callback(self.input)
-        else:
-            logger.debug("Serializing data for update")
-            if not self.serializer:
-                raise CreateError("Data serializer not provided")
-            payload = self.serializer(self.input)
+        logger.debug("Serializing data for update")
+        if not self.serializer:
+            raise CreateError("Data serializer not provided")
+        payload = self.serializer(self.input)
 
         url = self._build_resource_url(payload)
         req = requests.Request(
@@ -282,12 +268,12 @@ class OdataDataset(
             url=url,
             data=payload,
         )
-        prepared = self.linked_service.connection.session.prepare_request(req)  # type: ignore
-        response = self.linked_service.connection.session.send(prepared)  # type: ignore
+        prepared = self.linked_service.connection.session.prepare_request(req)
+        response = self.linked_service.connection.session.send(prepared)
         if response.status_code == METHOD_NOT_ALLOWED:
             req.method = "PUT"
-            prepared = self.linked_service.connection.session.prepare_request(req)  # type: ignore
-            response = self.linked_service.connection.session.send(prepared)  # type: ignore
+            prepared = self.linked_service.connection.session.prepare_request(req)
+            response = self.linked_service.connection.session.send(prepared)
 
         logger.debug(f"HTTP Response Info: {self._response_info(response)}")
         response.raise_for_status()
@@ -302,12 +288,36 @@ class OdataDataset(
             self.settings.url,
         )
 
-    def delete(self, **kwargs: dict[str, Any]) -> NoReturn:
-        raise NotImplementedError("Delete operation is not supported for Odata dataset")
+    def delete(self) -> NoReturn:
+        """
+        List entity using odata.
+        """
+        raise NotSupportedError("Delete operation is not supported for Odata dataset")
 
-    def rename(self, **kwargs: dict[str, Any]) -> NoReturn:
-        raise NotImplementedError("Rename operation is not supported for Odata dataset")
+    def rename(self) -> NoReturn:
+        """
+        List entity using odata.
+        """
+        raise NotSupportedError("List operation is not supported for Odata datasets")
 
     def close(self) -> None:
         """ """
         pass
+
+    def list(self) -> NoReturn:
+        """
+        List entity using odata.
+        """
+        raise NotSupportedError("List operation is not supported for Odata datasets")
+
+    def purge(self) -> NoReturn:
+        """
+        Purge entity using odata.
+        """
+        raise NotSupportedError("Purge operation is not supported for Odata")
+
+    def upsert(self) -> NoReturn:
+        """
+        Upsert entity using odata.
+        """
+        raise NotSupportedError("Upsert operation is not supported for Odata datasets")
