@@ -11,6 +11,9 @@ import uuid
 from unittest.mock import Mock, patch
 
 import pandas as pd
+import pytest
+import requests
+from ds_resource_plugin_py_lib.common.resource.dataset.errors import ReadError
 
 from ds_protocol_odata_py_lib.dataset.odata import OdataDataset, OdataDatasetSettings
 
@@ -165,3 +168,31 @@ class TestOdataDatasetRead:
 
             # When no deserializer, output should be empty
             assert isinstance(dataset.output, pd.DataFrame)
+
+    def test_read_http_error_raises_read_error(self) -> None:
+        """Test read() wraps HTTPError in ReadError."""
+        with patch("ds_protocol_odata_py_lib.dataset.odata.isinstance", return_value=True):
+            linked_service = Mock()
+            settings = OdataDatasetSettings(url="https://example.com/api/people")
+            dataset = OdataDataset(
+                linked_service=linked_service,
+                settings=settings,
+                id=uuid.uuid4(),
+                name="test",
+                version="1.0.0",
+            )
+
+            mock_response = Mock()
+            mock_response.content = b"{}"
+            mock_response.json.return_value = {}
+            mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("boom")
+
+            mock_session = Mock()
+            mock_session.prepare_request.return_value = Mock()
+            mock_session.send.return_value = mock_response
+
+            linked_service.connection = Mock()
+            linked_service.connection.session = mock_session
+
+            with pytest.raises(ReadError):
+                dataset.read()

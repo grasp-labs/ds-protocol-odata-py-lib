@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 from ds_protocol_http_py_lib import HttpLinkedService
-from ds_resource_plugin_py_lib.common.resource.dataset.errors import DeleteError
+from ds_resource_plugin_py_lib.common.resource.dataset.errors import DeleteError, MismatchedLinkedServiceError
 from ds_resource_plugin_py_lib.common.resource.errors import NotSupportedError
 from requests import Response
 
@@ -76,9 +76,64 @@ class TestOdataDataset:
         with pytest.raises(DeleteError):
             self.dataset._build_resource_url()
 
+    def test_post_init_raises_for_non_http_linked_service(self) -> None:
+        """Test __post_init__ enforces HttpLinkedService type."""
+        with pytest.raises(MismatchedLinkedServiceError):
+            OdataDataset(
+                linked_service=Mock(),
+                settings=OdataDatasetSettings(url="https://example.com/api"),
+                id=uuid.uuid4(),
+                name="test",
+                version="1.0.0",
+            )
 
-class TestResponseInfo:
-    """Test _response_info() static method."""
+    def test_set_output_from_response_dict_without_value(self) -> None:
+        """Test deserializing dict responses without a value key."""
+        mock_response = Mock(spec=Response)
+        mock_response.content = b'{"id": 1, "name": "John"}'
+        mock_response.json.return_value = {"id": 1, "name": "John"}
+
+        self.dataset._set_output_from_response(mock_response)
+
+        assert isinstance(self.dataset.output, pd.DataFrame)
+        assert len(self.dataset.output) == 1
+
+    def test_set_output_from_response_deserializer_value_error_fallback(self) -> None:
+        """Test object response fallback wraps payload in list when needed."""
+        mock_response = Mock(spec=Response)
+        mock_response.content = b'{"id": 1}'
+        mock_response.json.return_value = {"id": 1}
+
+        def flaky_deserializer(payload: object) -> pd.DataFrame:
+            if isinstance(payload, dict):
+                raise ValueError("dict not accepted")
+            return pd.DataFrame(payload)
+
+        self.dataset.deserializer = flaky_deserializer  # type: ignore[assignment]
+
+        self.dataset._set_output_from_response(mock_response)
+
+        assert isinstance(self.dataset.output, pd.DataFrame)
+        assert len(self.dataset.output) == 1
+
+    def test_set_output_from_response_no_content_no_fallback(self) -> None:
+        mock_response = Mock(spec=Response)
+        mock_response.content = b""
+
+        self.dataset._set_output_from_response(mock_response, fallback_to_input=False)
+
+        assert isinstance(self.dataset.output, pd.DataFrame)
+        assert self.dataset.output.empty
+
+    def test_set_output_from_response_no_deserializer_no_fallback(self) -> None:
+        mock_response = Mock(spec=Response)
+        mock_response.content = b'{"value": [{"id": 1}]}'
+        self.dataset.deserializer = None
+
+        self.dataset._set_output_from_response(mock_response, fallback_to_input=False)
+
+        assert isinstance(self.dataset.output, pd.DataFrame)
+        assert self.dataset.output.empty
 
     def test_response_info(self) -> None:
         """Test response info extraction."""
