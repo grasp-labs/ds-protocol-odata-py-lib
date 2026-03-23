@@ -219,7 +219,7 @@ class OdataDataset(
         Returns:
             None
         """
-        logger.info(f"Sending PUT request to {self.settings.url}")
+        logger.info(f"Sending PATCH/PUT request to {self.settings.url}")
 
         if self.input is None or not isinstance(self.input, pd.DataFrame) or self.input.empty:
             logger.warning("No content data provided for update.")
