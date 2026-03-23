@@ -185,7 +185,7 @@ class OdataDataset(
         """
         logger.info(f"Sending POST request to {self.settings.url}")
 
-        if not isinstance(self.input, pd.DataFrame) or self.input.empty:
+        if self.input is None or not isinstance(self.input, pd.DataFrame) or self.input.empty:
             logger.warning("No content data provided for create.")
             return
 
@@ -221,7 +221,7 @@ class OdataDataset(
         """
         logger.info(f"Sending PUT request to {self.settings.url}")
 
-        if not isinstance(self.input, pd.DataFrame) or self.input.empty:
+        if self.input is None or not isinstance(self.input, pd.DataFrame) or self.input.empty:
             logger.warning("No content data provided for update.")
             return
 
@@ -260,7 +260,7 @@ class OdataDataset(
         """
         logger.info(f"Sending DELETE request to {self.settings.url}")
 
-        if not isinstance(self.input, pd.DataFrame) or self.input.empty:
+        if self.input is None or not isinstance(self.input, pd.DataFrame) or self.input.empty:
             logger.warning("No content data provided for delete.")
             return
 
