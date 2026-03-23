@@ -102,3 +102,34 @@ class TestDeleteOperations:
 
             with pytest.raises(DeleteError):
                 dataset.delete()
+
+    def test_delete_successful_with_response(self) -> None:
+        """Test delete() succeeds and processes response."""
+        with patch("ds_protocol_odata_py_lib.dataset.odata.isinstance", return_value=True):
+            linked_service = Mock()
+            linked_service.settings = Mock(headers={"Authorization": "Bearer x"})
+            settings = OdataDatasetSettings(
+                url="https://example.com/api/people",
+                primary_keys=["id"],
+            )
+            dataset = OdataDataset(
+                linked_service=linked_service,
+                settings=settings,
+                id=uuid.uuid4(),
+                name="test",
+                version="1.0.0",
+            )
+            dataset.input = pd.DataFrame([{"id": 1}])
+
+            mock_response = Mock()
+            mock_response.content = b""
+            mock_response.raise_for_status.return_value = None
+
+            mock_session = Mock()
+            mock_session.prepare_request.return_value = Mock()
+            mock_session.send.return_value = mock_response
+            linked_service.connection = Mock(session=mock_session)
+
+            dataset.delete()
+
+            assert isinstance(dataset.output, pd.DataFrame)

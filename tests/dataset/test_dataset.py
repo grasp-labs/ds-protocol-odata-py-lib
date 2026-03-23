@@ -135,6 +135,52 @@ class TestOdataDataset:
         assert isinstance(self.dataset.output, pd.DataFrame)
         assert self.dataset.output.empty
 
+    def test_set_output_from_response_no_content_with_fallback_to_input(self) -> None:
+        """Test empty response falls back to input when flag is True."""
+        self.dataset.input = pd.DataFrame([{"id": 1, "name": "Original"}])
+        mock_response = Mock(spec=Response)
+        mock_response.content = b""
+
+        self.dataset._set_output_from_response(mock_response, fallback_to_input=True)
+
+        assert isinstance(self.dataset.output, pd.DataFrame)
+        assert len(self.dataset.output) == 1
+        assert self.dataset.output.iloc[0]["name"] == "Original"
+
+    def test_set_output_from_response_no_deserializer_with_fallback_to_input(self) -> None:
+        """Test no deserializer falls back to input when flag is True."""
+        self.dataset.input = pd.DataFrame([{"id": 1, "name": "Original"}])
+        self.dataset.deserializer = None
+        mock_response = Mock(spec=Response)
+        mock_response.content = b'{"value": [{"id": 2}]}'
+
+        self.dataset._set_output_from_response(mock_response, fallback_to_input=True)
+
+        assert isinstance(self.dataset.output, pd.DataFrame)
+        assert len(self.dataset.output) == 1
+        assert self.dataset.output.iloc[0]["name"] == "Original"
+
+    def test_set_output_from_response_list_wrapped_object_with_logging(self) -> None:
+        """Test object response is wrapped in list and logged correctly."""
+        mock_response = Mock(spec=Response)
+        mock_response.content = b'{"id": 1, "name": "John"}'
+        mock_response.json.return_value = {"id": 1, "name": "John"}
+
+        def flaky_deserializer(payload: object) -> pd.DataFrame:
+            if isinstance(payload, dict):
+                raise ValueError("dict not accepted")
+            return pd.DataFrame(payload)
+
+        self.dataset.deserializer = flaky_deserializer  # type: ignore[assignment]
+
+        with patch("ds_protocol_odata_py_lib.dataset.odata.logger") as mock_logger:
+            self.dataset._set_output_from_response(mock_response)
+            # Verify logging was called
+            assert mock_logger.info.called
+
+        assert isinstance(self.dataset.output, pd.DataFrame)
+        assert len(self.dataset.output) == 1
+
     def test_response_info(self) -> None:
         """Test response info extraction."""
         mock_response = Mock(spec=Response)
