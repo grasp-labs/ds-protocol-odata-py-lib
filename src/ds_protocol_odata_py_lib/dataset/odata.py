@@ -15,6 +15,18 @@ Example:
     >>> dataset = OdataDataset(linked_service=linked_service, settings=...)
     >>> dataset.read()
 
+Example:
+    >>> from ds_protocol_http_py_lib import HttpLinkedService, HttpLinkedServiceSettings
+    >>> from ds_protocol_odata_py_lib.dataset.odata import OdataDataset, OdataDatasetSettings
+    >>> linked_service = HttpLinkedService(settings=...)
+    >>> linked_service.connect()
+    >>> settings = OdataDatasetSettings(
+    ...     url="https://api.example.com/odata/Users",
+    ...     top=100,
+    ...     primary_keys=["id"]
+    ... )
+    >>> dataset = OdataDataset(linked_service=linked_service, settings=settings)
+    >>> dataset.read()
 """
 
 from dataclasses import dataclass, field
@@ -46,6 +58,10 @@ logger = Logger.get_logger(__name__, package=True)
 
 @dataclass(kw_only=True)
 class OdataDatasetSettings(DatasetSettings):
+    """
+    Settings for Odata dataset operations.
+    """
+
     url: str
     primary_keys: list[str] | None = None
 
@@ -65,6 +81,20 @@ class OdataDatasetSettings(DatasetSettings):
     count: bool | None = None
 
     def __post_init__(self) -> None:
+        """
+        Post-initialize the settings by building the OData query parameters dictionary.
+
+        This method is called automatically after the dataclass is initialized. It converts
+        individual OData parameter fields (top, filter, skip, etc.) into a dictionary with
+        OData query parameter names (prefixed with $). Only non-None values are included
+        in the resulting params dictionary.
+
+        The params dictionary is used internally when constructing OData requests to avoid
+        having to check each parameter individually.
+
+        Returns:
+            None
+        """
         raw_params = {
             "$top": self.top,
             "$filter": self.filter,
@@ -95,7 +125,14 @@ class OdataDataset(
     Generic[HttpLinkedServiceType, OdataDatasetSettingsType],
 ):
     """
-    Represent Odata dataset.
+    OData dataset for CRUD operations via OData-compliant REST APIs.
+
+    This class implements the TabularDataset interface for OData-compliant APIs,
+    supporting read, create, update, and delete (CRUD) operations. Data is exchanged
+    as JSON via pandas DataFrames, with optional pagination and OData query parameters.
+
+    Raises:
+        MismatchedLinkedServiceError: If linked_service is not an instance of HttpLinkedService.
     """
 
     settings: OdataDatasetSettingsType
@@ -118,10 +155,20 @@ class OdataDataset(
 
     def read(self) -> None:
         """
-        Read Odata dataset.
+        Read entities from OData resource and populate self.output.
+
+        Sends GET request to the OData API URL with configured query parameters
+        (top, filter, skip, select, orderby, search, expand, count). If pagination
+        is enabled, automatically follows @odata.nextLink to fetch all pages.
+
+        Data is deserialized from JSON response format and concatenated into a single
+        pandas DataFrame in self.output.
 
         Returns:
-            None
+            None: Result is stored in self.output as pandas DataFrame.
+
+        Raises:
+            ReadError: If HTTP request fails or response status indicates error.
         """
 
         logger.info(f"Sending GET request to {self.settings.url}")
@@ -178,10 +225,19 @@ class OdataDataset(
 
     def create(self) -> None:
         """
-        Create entity using Odata.
+        Create entities via OData POST request.
+
+        Serializes the pandas DataFrame in self.input to JSON and sends a POST request
+        to the configured URL. The response (if any) is deserialized and stored in
+        self.output.
 
         Returns:
-            None
+            None: Created entities (or echo of input) stored in self.output as pandas DataFrame.
+
+        Raises:
+            CreateError: If input is not a valid DataFrame, serializer is not configured, or HTTP
+        request fails (including server rejecting data).
+
         """
         logger.info(f"Sending POST request to {self.settings.url}")
 
@@ -214,10 +270,18 @@ class OdataDataset(
 
     def update(self) -> None:
         """
-        Update entity using Odata.
+        Update entities via OData PATCH request (falls back to PUT if PATCH not allowed).
+
+        Serializes the pandas DataFrame in self.input to JSON and sends a PATCH request
+        to the configured URL. If the server rejects PATCH with 405 Method Not Allowed,
+        retries with PUT. The response is deserialized and stored in self.output.
 
         Returns:
-            None
+            None: Updated entities (or echo of input) stored in self.output as pandas DataFrame.
+
+        Raises:
+            UpdateError: If primary_keys are not configured, input is invalid, serializer is not
+            configured, or HTTP request fails.
         """
         logger.info(f"Sending PATCH/PUT request to {self.settings.url}")
 
@@ -256,7 +320,18 @@ class OdataDataset(
 
     def delete(self) -> None:
         """
-        Delete entity using odata.
+        Delete entities via OData DELETE request.
+
+        For each entity in self.input, constructs an OData key segment URL using the
+        primary_keys fields and sends a DELETE request. The response is deserialized
+        and stored in self.output.
+
+        Returns:
+            None: Server response stored in self.output as pandas DataFrame.
+
+        Raises:
+            DeleteError: If primary_keys are not configured, required primary key columns are missing
+            from input, serializer is not configured, or HTTP request fails.
         """
         logger.info(f"Sending DELETE request to {self.settings.url}")
 
@@ -289,32 +364,56 @@ class OdataDataset(
 
     def rename(self) -> NoReturn:
         """
-        List entity using odata.
+        Rename operation is not supported for OData datasets.
+
+        OData endpoints typically handle entity identification via primary keys in URLs,
+        not via separate rename operations. Renaming is typically done via update().
+
+        Raises:
+            NotSupportedError
         """
         raise NotSupportedError("List operation is not supported for Odata datasets")
 
     def list(self) -> NoReturn:
         """
-        List entity using odata.
+        List operation is not supported for OData datasets.
+
+        Use read() instead to retrieve entities from the OData resource.
+
+        Raises:
+            NotSupportedError
         """
         raise NotSupportedError("List operation is not supported for Odata datasets")
 
     def purge(self) -> NoReturn:
         """
-        Purge entity using odata.
+        Purge operation is not supported for OData datasets.
+
+        Use delete() to remove specific entities identified by primary keys.
+
+        Raises:
+            NotSupportedError
         """
         raise NotSupportedError("Purge operation is not supported for Odata")
 
     def upsert(self) -> NoReturn:
         """
-        Upsert entity using odata.
+        Upsert operation is not supported for OData datasets.
+
+        Use create() or update() separately as needed.
+
+        Raises:
+            NotSupportedError
         """
         raise NotSupportedError("Upsert operation is not supported for Odata datasets")
 
     def close(self) -> None:
         """
-        Just to be compliant with the Dataset interface, no need to close anything for Odata datasets since we
-        are not maintaining any persistent connections or resources that require cleanup.
+        Close the dataset (no-op for OData datasets).
+
+        This method is provided for compliance with the Dataset interface contract.
+        OData datasets do not maintain persistent connections or resources requiring
+        explicit cleanup. The actual connection lifecycle is managed by the linked_service.
 
         Returns:
             None
@@ -360,21 +459,23 @@ class OdataDataset(
                 )
 
     def _build_resource_url(self) -> str:
-        r"""
+        """
         Build the full OData resource URL for a specific entity using configured primary keys.
 
-        The method reads key values from the first row of `self.input` and appendsan OData key segment
-        to `self.settings.url`. String values are quoted andnon\-string values are emitted as raw literals.
+        The method reads key values from the first row of `self.input` and appends an OData
+        key segment to `self.settings.url`. String values are quoted and non-string values
+        are emitted as raw literals.
 
         Raises:
-            Exception: If primary keys are not configured or if any primary key is missing in the input DataFrame.
-
-        Examples:
-        - Single key: `.../resource(id=123)`
-        - Composite key: `.../resource(userPrincipalName='john.doe@example.com',tenantId=456)`
+            DeleteError: If primary keys are not configured or if any primary key is missing in the input DataFrame.
 
         Returns:
-            str
+            str: The OData resource URL with key segment appended.
+
+        Examples
+        --------
+        - Single key: `.../resource(id=123)`
+        - Composite key: `.../resource(userPrincipalName='john.doe@example.com',tenantId=456)`
         """
         if not self.settings.primary_keys:
             raise DeleteError("Primary keys must be provided to segment the URL.")
@@ -393,6 +494,15 @@ class OdataDataset(
 
     @staticmethod
     def _response_info(response: requests.Response) -> dict[str, Any]:
+        """
+        Extract useful debugging information from an HTTP response.
+
+        Args:
+            response : requests.Response
+
+        Returns:
+            dict[str, Any]
+        """
         return {
             "status_code": response.status_code,
             "url": response.url,
