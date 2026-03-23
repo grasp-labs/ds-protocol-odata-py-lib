@@ -93,55 +93,6 @@ class OdataDataset(
     def type(self) -> ResourceType:
         return ResourceType.DATASET_ODATA
 
-    def _build_resource_url(self) -> str:
-        """
-        Build the full resource URL for a specific entity based on its primary keys.
-
-        This method constructs a full OData resource URL by dynamically appending
-        the primary key values to the base URL in the format required by OData.
-        It handles both single and composite keys and formats them appropriately
-        for strings and numeric values.
-
-        Examples:
-        ---------
-        **Single Key**:
-        - Primary Keys: ['id']
-        - Row Data: {'id': 123, 'name': 'John Doe'}
-        - Result: "https://example.com/resource(id=123)"
-
-        **Composite Keys**:
-        - Primary Keys: ['userPrincipalName', 'tenantId']
-        - Row Data: {'userPrincipalName': 'john.doe@example.com', 'tenantId': 456}
-        - Result: "https://example.com/resource(userPrincipalName='john.doe@example.com',tenantId=456)"
-
-        :param row: pd.Series: The row data containing the primary key values.
-        :return: str: The full resource URL with primary key values appended.
-        """
-        if not self.settings.primary_keys:
-            raise Exception("Primary keys must be provided to segment the URL.")
-
-        try:
-            segment = ",".join(
-                f"{key}='{self.input.iloc[0][key]}'"
-                if isinstance(self.input.iloc[0][key], str)
-                else f"{key}={self.input.iloc[0][key]}"
-                for key in self.settings.primary_keys
-            )
-        except KeyError as exc:
-            raise Exception(f"Primary key {exc} not found in the payload.") from exc
-
-        return f"{self.settings.url}({segment})"
-
-    @staticmethod
-    def _response_info(response: requests.Response) -> dict[str, Any]:
-        return {
-            "status_code": response.status_code,
-            "url": response.url,
-            "headers": response.headers,
-            "reason": response.reason,
-            "content": response.content[:500] if response.content else None,
-        }
-
     def read(self) -> None:
         """
         Read Odata dataset.
@@ -297,10 +248,6 @@ class OdataDataset(
         """
         raise NotSupportedError("List operation is not supported for Odata datasets")
 
-    def close(self) -> None:
-        """ """
-        pass
-
     def list(self) -> NoReturn:
         """
         List entity using odata.
@@ -319,24 +266,86 @@ class OdataDataset(
         """
         raise NotSupportedError("Upsert operation is not supported for Odata datasets")
 
+    def close(self) -> None:
+        """
+        Just to be compliant with the Dataset interface, no need to close anything for Odata datasets since we
+        are not maintaining any persistent connections or resources that require cleanup.
+
+        Returns:
+            None
+        """
+        pass
+
     def _set_output_from_response(self, response: Response) -> None:
         if not response.content:
             self.output = pd.DataFrame()
+            logger.info(
+                "Request completed with empty response for %s.",
+                self.settings.url,
+            )
+            return
+        if not self.deserializer:
+            self.output = pd.DataFrame()
+            logger.info(
+                "Request completed with no deserializer configured for %s.",
+                self.settings.url,
+            )
+            return
+        logger.debug("Deserializing response content.")
+        response_content = response.json()
 
-        if self.deserializer and response.content:
-            logger.debug("Deserializing response content.")
-            response_content = response.json()
-            if "value" in response_content:
-                self.output = self.deserializer(response_content["value"])
-            else:
-                try:
-                    self.output = self.deserializer(response_content)
-                except ValueError:
-                    # fall back to deserializing the original input if response content is not in expected format
-                    self.output = self.deserializer([response_content])
+        if isinstance(response_content, dict) and "value" in response_content:
+            self.output = self.deserializer(response_content["value"])
+        else:
+            try:
+                self.output = self.deserializer(response_content)
+            except ValueError:
+                # Fall back to wrapping object responses in a list
+                self.output = self.deserializer([response_content])
+                logger.info(
+                    "Successfully processed response with (%s) records for %s.",
+                    len(self.output),
+                    self.settings.url,
+                )
 
-        logger.info(
-            "Successfully updated (%s) records for %s.",
-            len(self.input),
-            self.settings.url,
-        )
+    def _build_resource_url(self) -> str:
+        r"""
+        Build the full OData resource URL for a specific entity using configured primary keys.
+
+        The method reads key values from the first row of `self.input` and appendsan OData key segment
+        to `self.settings.url`. String values are quoted andnon\-string values are emitted as raw literals.
+
+        Raises:
+            Exception: If primary keys are not configured or if any primary key is missing in the input DataFrame.
+
+        Examples:
+        - Single key: `.../resource(id=123)`
+        - Composite key: `.../resource(userPrincipalName='john.doe@example.com',tenantId=456)`
+
+        Returns:
+            str
+        """
+        if not self.settings.primary_keys:
+            raise Exception("Primary keys must be provided to segment the URL.")
+
+        try:
+            segment = ",".join(
+                f"{key}='{self.input.iloc[0][key]}'"
+                if isinstance(self.input.iloc[0][key], str)
+                else f"{key}={self.input.iloc[0][key]}"
+                for key in self.settings.primary_keys
+            )
+        except KeyError as exc:
+            raise Exception(f"Primary key {exc} not found in the payload.") from exc
+
+        return f"{self.settings.url}({segment})"
+
+    @staticmethod
+    def _response_info(response: requests.Response) -> dict[str, Any]:
+        return {
+            "status_code": response.status_code,
+            "url": response.url,
+            "headers": response.headers,
+            "reason": response.reason,
+            "content": response.content[:500] if response.content else None,
+        }
