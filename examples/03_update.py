@@ -11,7 +11,10 @@ dataset = OdataDataset(
         settings=HttpLinkedServiceSettings(
             host="services.odata.org",
             auth_type=AuthType.NO_AUTH,
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json",
+                     "OData-Version": "4.0",
+                     "OData-MaxVersion": "4.02"
+                     },
         ),
         id=uuid.uuid4(),
         name="sample::linked_service",

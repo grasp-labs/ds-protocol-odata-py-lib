@@ -1,4 +1,3 @@
-import json
 from dataclasses import dataclass, field
 from http.client import METHOD_NOT_ALLOWED
 from typing import Any, Generic, NoReturn, TypeVar
@@ -13,6 +12,7 @@ from ds_resource_plugin_py_lib.common.resource.dataset.errors import CreateError
 from ds_resource_plugin_py_lib.common.resource.errors import NotSupportedError
 from ds_resource_plugin_py_lib.common.serde.deserialize import PandasDeserializer
 from ds_resource_plugin_py_lib.common.serde.serialize import PandasSerializer
+from requests import Response
 
 from ..enums import ResourceType
 
@@ -93,7 +93,7 @@ class OdataDataset(
     def type(self) -> ResourceType:
         return ResourceType.DATASET_ODATA
 
-    def _build_resource_url(self, entity: str) -> str:
+    def _build_resource_url(self) -> str:
         """
         Build the full resource URL for a specific entity based on its primary keys.
 
@@ -120,10 +120,11 @@ class OdataDataset(
         if not self.settings.primary_keys:
             raise Exception("Primary keys must be provided to segment the URL.")
 
-        payload: dict[str, str] = json.loads(entity)["value"]["0"]
         try:
             segment = ",".join(
-                (f"{key}='{payload[key]}'" if isinstance(payload[key], str) else f"{key}={payload[key]}")
+                f"{key}='{self.input.iloc[0][key]}'"
+                if isinstance(self.input.iloc[0][key], str)
+                else f"{key}={self.input.iloc[0][key]}"
                 for key in self.settings.primary_keys
             )
         except KeyError as exc:
@@ -222,26 +223,14 @@ class OdataDataset(
             method="POST",
             url=self.settings.url,
             data=payload,
+            headers=self.linked_service.settings.headers,
         )
         prepared = self.linked_service.connection.session.prepare_request(req)
         response = self.linked_service.connection.session.send(prepared)
 
         logger.debug(f"HTTP Response Info: {self._response_info(response)}")
         response.raise_for_status()
-
-        if not response.content:
-            self.output = pd.DataFrame()
-
-        elif self.deserializer and response.content:
-            logger.debug("Deserializing response content.")
-            response_content = response.json()
-            self.output = self.deserializer(response_content["value"])
-
-        logger.info(
-            "Successfully created (%s) records for %s.",
-            len(self.input),
-            self.settings.url,
-        )
+        self._set_output_from_response(response)
 
     def update(self) -> None:
         """
@@ -278,25 +267,29 @@ class OdataDataset(
 
         logger.debug(f"HTTP Response Info: {self._response_info(response)}")
         response.raise_for_status()
+        self._set_output_from_response(response)
 
-        if not response.content:
-            self.output = pd.DataFrame()
-        if self.deserializer and response.content:
-            logger.debug("Deserializing response content.")
-            response_content = response.json()
-            self.output = self.deserializer(response_content["value"])
+    def delete(self) -> None:
+        """
+        Delete entity using odata.
+        """
+        logger.debug("Serializing data for write")
+        if not self.serializer:
+            raise CreateError("Data serializer not provided")
 
-        logger.info(
-            "Successfully updated (%s) records for %s.",
-            len(self.input),
-            self.settings.url,
+        url = self._build_resource_url()
+
+        req = requests.Request(
+            method="DELETE",
+            url=url,
+            headers=self.linked_service.settings.headers,
         )
+        prepared = self.linked_service.connection.session.prepare_request(req)
+        response = self.linked_service.connection.session.send(prepared)
 
-    def delete(self) -> NoReturn:
-        """
-        List entity using odata.
-        """
-        raise NotSupportedError("Delete operation is not supported for Odata dataset")
+        logger.debug(f"HTTP Response Info: {self._response_info(response)}")
+        response.raise_for_status()
+        self._set_output_from_response(response)
 
     def rename(self) -> NoReturn:
         """
@@ -325,3 +318,25 @@ class OdataDataset(
         Upsert entity using odata.
         """
         raise NotSupportedError("Upsert operation is not supported for Odata datasets")
+
+    def _set_output_from_response(self, response: Response) -> None:
+        if not response.content:
+            self.output = pd.DataFrame()
+
+        if self.deserializer and response.content:
+            logger.debug("Deserializing response content.")
+            response_content = response.json()
+            if "value" in response_content:
+                self.output = self.deserializer(response_content["value"])
+            else:
+                try:
+                    self.output = self.deserializer(response_content)
+                except ValueError:
+                    # fall back to deserializing the original input if response content is not in expected format
+                    self.output = self.deserializer([response_content])
+
+        logger.info(
+            "Successfully updated (%s) records for %s.",
+            len(self.input),
+            self.settings.url,
+        )
