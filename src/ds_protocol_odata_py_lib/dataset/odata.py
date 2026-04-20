@@ -187,6 +187,7 @@ class OdataDataset(
                     method="GET",
                     url=pagination_url,
                     params=self.settings.read.params if self.settings.read and not _next else None,
+                    headers=self.linked_service.settings.headers,
                 )
                 prepared = self.linked_service.connection.session.prepare_request(req)
                 response = self.linked_service.connection.session.send(prepared)
