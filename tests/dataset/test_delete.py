@@ -56,24 +56,6 @@ class TestDeleteOperations:
             with pytest.raises(DeleteError):
                 dataset.delete()
 
-    def test_delete_no_serializer_raises_error(self) -> None:
-        """Test delete() raises DeleteError when serializer is None."""
-        with patch("ds_protocol_odata_py_lib.dataset.odata.isinstance", return_value=True):
-            linked_service = Mock()
-            settings = OdataDatasetSettings(url="https://example.com/api/people", delete=DeleteSettings(primary_keys=["id"]))
-            dataset = OdataDataset(
-                linked_service=linked_service,
-                settings=settings,
-                id=uuid.uuid4(),
-                name="test",
-                version="1.0.0",
-            )
-            dataset.input = pd.DataFrame([{"id": 1}])
-            dataset.serializer = None
-
-            with pytest.raises(DeleteError):
-                dataset.delete()
-
     def test_delete_request_exception_raises_delete_error(self) -> None:
         """Test delete() wraps RequestException in DeleteError."""
         with patch("ds_protocol_odata_py_lib.dataset.odata.isinstance", return_value=True):
