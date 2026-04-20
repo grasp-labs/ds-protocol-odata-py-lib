@@ -1,14 +1,14 @@
 """
 **File:** ``enums.py``
-**Region:** ``ds_protocol_http_py_lib/enums``
+**Region:** ``ds_protocol_odata_py_lib/enums``
 
-Constants for HTTP protocol.
+Constants for OData-related enums, including HTTP methods and OData resource types.
 
 Example:
-    >>> ResourceType.LINKED_SERVICE
-    'DS.RESOURCE.LINKED_SERVICE.HTTP'
-    >>> ResourceType.DATASET
-    'DS.RESOURCE.DATASET.HTTP'
+    >>> HttpMethod.GET
+    'GET'
+    >>> ResourceType.DATASET_ODATA
+    'DS.RESOURCE.DATASET.ODATA'
 """
 
 from enum import StrEnum
