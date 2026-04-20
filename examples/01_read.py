@@ -17,7 +17,7 @@ import uuid
 from ds_protocol_http_py_lib import HttpLinkedService, HttpLinkedServiceSettings
 from ds_protocol_http_py_lib.enums import AuthType
 
-from ds_protocol_odata_py_lib.dataset.odata import OdataDataset, OdataDatasetSettings
+from ds_protocol_odata_py_lib.dataset.odata import OdataDataset, OdataDatasetSettings, ReadSettings
 
 
 def main() -> None:
@@ -41,16 +41,17 @@ def main() -> None:
         linked_service=linked_service,
         settings=OdataDatasetSettings(
             url="https://services.odata.org/TripPinRESTierService/People",
-            select="FirstName",
-            top=15,
-            # Uncomment to customize:
-            # select='UserName, FirstName, LastName',
-            # count=True,
-            # skip=2,
-            # paginate=True,
-            # filter="FirstName eq 'Scott'",
-            # expand="Trips($filter=Name eq 'Trip in US')"
-            # primary_keys=["UserName"]
+            read=ReadSettings(
+                select="FirstName",
+                top=15,
+                # Uncomment to customize:
+                # select='UserName, FirstName, LastName',
+                # count=True,
+                # skip=2,
+                # filter="FirstName eq 'Scott'",
+                # expand="Trips($filter=Name eq 'Trip in US')",
+            ),
+            # primary_keys = ["UserName"]
         ),
         id=uuid.uuid4(),
         description="A sample dataset",

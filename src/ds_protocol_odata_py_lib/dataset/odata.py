@@ -57,20 +57,8 @@ logger = Logger.get_logger(__name__, package=True)
 
 
 @dataclass(kw_only=True)
-class OdataDatasetSettings(DatasetSettings):
-    """
-    Settings for Odata dataset operations.
-    """
-
-    url: str
-    primary_keys: list[str] | None = None
-
-    # Pagination properties
-    paginate: bool | None = False
-    pagination_url: str | None = field(init=False)
-
+class ReadSettings:
     # Odata specific properties
-    params: dict[str, Any] = field(init=False)
     top: int | None = 100
     filter: str | None = None
     skip: int | None = None
@@ -79,6 +67,7 @@ class OdataDatasetSettings(DatasetSettings):
     search: str | None = None
     expand: str | None = None
     count: bool | None = None
+    params: dict[str, Any] = field(init=False)
 
     def __post_init__(self) -> None:
         """
@@ -106,6 +95,18 @@ class OdataDatasetSettings(DatasetSettings):
             "$count": str(self.count).lower() if isinstance(self.count, bool) else None,
         }
         self.params = {k: v for k, v in raw_params.items() if v is not None}
+
+
+@dataclass(kw_only=True)
+class OdataDatasetSettings(DatasetSettings):
+    """
+    Settings for Odata dataset operations.
+    """
+
+    url: str
+    primary_keys: list[str] | None = None
+
+    read: ReadSettings | None = None
 
 
 OdataDatasetSettingsType = TypeVar(
@@ -173,15 +174,15 @@ class OdataDataset(
 
         logger.info(f"Sending GET request to {self.settings.url}")
 
-        self.settings.pagination_url = self.settings.url
+        pagination_url: str | None = self.settings.url
         result = []
         _next = False
-        while self.settings.pagination_url:
+        while pagination_url:
             try:
                 req = requests.Request(
                     method="GET",
-                    url=self.settings.pagination_url,
-                    params=self.settings.params if not _next else None,
+                    url=pagination_url,
+                    params=self.settings.read.params if self.settings.read and not _next else None,
                 )
                 prepared = self.linked_service.connection.session.prepare_request(req)
                 response = self.linked_service.connection.session.send(prepared)
@@ -201,14 +202,11 @@ class OdataDataset(
                         response.url,
                     )
 
-                if not self.settings.paginate:
-                    break
-
                 if not response_content.get("@odata.nextLink"):
                     logger.debug("No more pages to fetch. Terminating data fetch loop.")
 
                 # Update the pagination URL
-                self.settings.pagination_url = response_content.get("@odata.nextLink")
+                pagination_url = response_content.get("@odata.nextLink")
                 _next = True
 
             except requests.exceptions.HTTPError as exc:
