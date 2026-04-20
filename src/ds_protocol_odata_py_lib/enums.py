@@ -28,7 +28,7 @@ class HttpMethod(StrEnum):
 
 class ResourceType(StrEnum):
     """
-    Constants for HTTP protocol.
+    Constants for OData resource type identifiers.
     """
 
     DATASET_ODATA = "DS.RESOURCE.DATASET.ODATA"
