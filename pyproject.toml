@@ -6,7 +6,11 @@ build-backend = "setuptools.build_meta"
 name = "ds-protocol-odata-py-lib"
 version = "0.1.0-alpha.1"
 description = "A Python package from the DS library collection"
-dependencies = []
+dependencies = [
+    "ds-resource-plugin-py-lib>=0.1.0-rc.3,<1.0.0",
+    "ds-protocol-http-py-lib>=0.1.0b4,<1.0.0",
+    "requests>=2.32.0,<3.0.0",
+]
 requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE-APACHE"]
@@ -42,12 +46,14 @@ odata = "ds_protocol_odata_py_lib"
 dev = [
     "ruff>=0.1.8",
     "mypy>=1.7.0",
+    "pandas-stubs>=2.1.0",
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "pytest-xdist>=3.3.0",
     "pre-commit>=3.6.0",
     "build>=1.0.0",
     "twine>=4.0.0",
+    "types-requests>=2.32.0,<3.0.0",
     "sphinx>=7.1.0",
     "sphinx-autoapi>=3.0.0",
     "sphinx-material>=0.0.35",

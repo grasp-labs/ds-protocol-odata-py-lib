@@ -1,16 +1,16 @@
 """
 **File:** ``__init__.py``
-**Region:** ``{{GITHUB_REPO}}``
+**Region:** ``ds_protocol_odata_py_lib``
 
 Description
 -----------
-A Python package from the {{PROJECT_NAME}} library.
+A Python package from the ds-protocol-odata-py-lib library.
 
 Example
 -------
 .. code-block:: python
 
-    from {{PYTHON_MODULE_NAME}} import __version__
+    from ds_protocol_odata_py_lib import __version__
 
     print(f"Package version: {__version__}")
 """
