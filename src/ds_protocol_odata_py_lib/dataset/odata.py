@@ -179,7 +179,7 @@ class OdataDataset(
         logger.info(f"Sending GET request to {self.settings.url}")
 
         pagination_url: str | None = self.settings.url
-        result = []
+        result: list[pd.DataFrame] = []
         _next = False
         while pagination_url:
             try:
