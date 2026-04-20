@@ -20,7 +20,7 @@ import pandas as pd
 from ds_protocol_http_py_lib import HttpLinkedService, HttpLinkedServiceSettings
 from ds_protocol_http_py_lib.enums import AuthType
 
-from ds_protocol_odata_py_lib.dataset.odata import OdataDataset, OdataDatasetSettings
+from ds_protocol_odata_py_lib.dataset.odata import OdataDataset, OdataDatasetSettings, DeleteSettings
 
 
 def main() -> None:
@@ -40,7 +40,9 @@ def main() -> None:
         linked_service=linked_service,
         settings=OdataDatasetSettings(
             url="https://services.odata.org/TripPinRESTierService/People",
-            primary_keys=["UserName"],
+            delete=DeleteSettings(
+            primary_keys=["UserName"]
+            )
         ),
         id=uuid.uuid4(),
         name="sample::dataset",

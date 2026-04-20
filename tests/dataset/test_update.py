@@ -15,7 +15,7 @@ import pytest
 import requests
 from ds_resource_plugin_py_lib.common.resource.dataset.errors import UpdateError
 
-from ds_protocol_odata_py_lib.dataset.odata import OdataDataset, OdataDatasetSettings
+from ds_protocol_odata_py_lib.dataset.odata import DeleteSettings, OdataDataset, OdataDatasetSettings
 
 
 class TestUpdateOperations:
@@ -25,10 +25,7 @@ class TestUpdateOperations:
         """Test update() with empty input returns early."""
         with patch("ds_protocol_odata_py_lib.dataset.odata.isinstance", return_value=True):
             linked_service = Mock()
-            settings = OdataDatasetSettings(
-                url="https://example.com/api/people",
-                primary_keys=["id"],
-            )
+            settings = OdataDatasetSettings(url="https://example.com/api/people", delete=DeleteSettings(primary_keys=["id"]))
             dataset = OdataDataset(
                 linked_service=linked_service,
                 settings=settings,
@@ -39,8 +36,8 @@ class TestUpdateOperations:
             dataset.input = pd.DataFrame()
             dataset.update()  # Should return without error
 
-    def test_update_no_primary_keys_raises_error(self) -> None:
-        """Test update() raises UpdateError when primary_keys not set."""
+    def test_update_without_primary_keys_is_allowed(self) -> None:
+        """Test update() does not require delete primary keys."""
         with patch("ds_protocol_odata_py_lib.dataset.odata.isinstance", return_value=True):
             linked_service = Mock()
             settings = OdataDatasetSettings(url="https://example.com/api/people")
@@ -53,17 +50,27 @@ class TestUpdateOperations:
             )
             dataset.input = pd.DataFrame([{"id": 1, "name": "John"}])
 
-            with pytest.raises(UpdateError):
-                dataset.update()
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.content = b""
+            mock_response.raise_for_status.return_value = None
+
+            mock_session = Mock()
+            mock_session.prepare_request.return_value = Mock()
+            mock_session.send.return_value = mock_response
+            linked_service.connection = Mock(session=mock_session)
+
+            dataset.update()
+
+            assert mock_session.send.call_count == 1
+            assert isinstance(dataset.output, pd.DataFrame)
+            assert len(dataset.output) == 1
 
     def test_update_no_serializer_raises_update_error(self) -> None:
         """Test update() raises UpdateError when serializer is None."""
         with patch("ds_protocol_odata_py_lib.dataset.odata.isinstance", return_value=True):
             linked_service = Mock()
-            settings = OdataDatasetSettings(
-                url="https://example.com/api/people",
-                primary_keys=["id"],
-            )
+            settings = OdataDatasetSettings(url="https://example.com/api/people", delete=DeleteSettings(primary_keys=["id"]))
             dataset = OdataDataset(
                 linked_service=linked_service,
                 settings=settings,
@@ -81,10 +88,7 @@ class TestUpdateOperations:
         """Test update() falls back to PUT when PATCH returns 405."""
         with patch("ds_protocol_odata_py_lib.dataset.odata.isinstance", return_value=True):
             linked_service = Mock()
-            settings = OdataDatasetSettings(
-                url="https://example.com/api/people",
-                primary_keys=["id"],
-            )
+            settings = OdataDatasetSettings(url="https://example.com/api/people", delete=DeleteSettings(primary_keys=["id"]))
             dataset = OdataDataset(
                 linked_service=linked_service,
                 settings=settings,
@@ -114,10 +118,7 @@ class TestUpdateOperations:
         """Test update() wraps RequestException in UpdateError."""
         with patch("ds_protocol_odata_py_lib.dataset.odata.isinstance", return_value=True):
             linked_service = Mock()
-            settings = OdataDatasetSettings(
-                url="https://example.com/api/people",
-                primary_keys=["id"],
-            )
+            settings = OdataDatasetSettings(url="https://example.com/api/people", delete=DeleteSettings(primary_keys=["id"]))
             dataset = OdataDataset(
                 linked_service=linked_service,
                 settings=settings,

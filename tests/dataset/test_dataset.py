@@ -17,7 +17,7 @@ from ds_resource_plugin_py_lib.common.resource.dataset.errors import DeleteError
 from ds_resource_plugin_py_lib.common.resource.errors import NotSupportedError
 from requests import Response
 
-from ds_protocol_odata_py_lib.dataset.odata import OdataDataset, OdataDatasetSettings
+from ds_protocol_odata_py_lib.dataset.odata import DeleteSettings, OdataDataset, OdataDatasetSettings
 from ds_protocol_odata_py_lib.enums import ResourceType
 
 
@@ -31,10 +31,7 @@ class TestOdataDataset:
     def setup_method(self) -> None:
         """Setup dataset for each test."""
         self.linked_service = Mock(spec=HttpLinkedService)
-        self.settings = OdataDatasetSettings(
-            url="https://example.com/api/people",
-            primary_keys=["id"],
-        )
+        self.settings = OdataDatasetSettings(url="https://example.com/api/people", delete=DeleteSettings(primary_keys=["id"]))
         self.dataset = OdataDataset(
             linked_service=self.linked_service,
             settings=self.settings,
@@ -45,10 +42,10 @@ class TestOdataDataset:
 
     def test_build_url_string_key(self) -> None:
         """Test building URL with string key."""
-        self.settings.primary_keys = ["username"]
+        self.settings.delete.primary_keys = ["username"]
         self.dataset.input = pd.DataFrame([{"username": "john"}])
 
-        url = self.dataset._build_resource_url()
+        url = self.dataset._build_delete_resource_url()
 
         assert url == "https://example.com/api/people(username='john')"
 
@@ -56,25 +53,25 @@ class TestOdataDataset:
         """Test building URL with numeric key."""
         self.dataset.input = pd.DataFrame([{"id": 123}])
 
-        url = self.dataset._build_resource_url()
+        url = self.dataset._build_delete_resource_url()
 
         assert url == "https://example.com/api/people(id=123)"
 
     def test_build_url_no_primary_keys(self) -> None:
         """Test that missing primary_keys raises DeleteError."""
-        self.settings.primary_keys = None
+        self.settings.delete.primary_keys = None
         self.dataset.input = pd.DataFrame([{"id": 1}])
 
         with pytest.raises(DeleteError):
-            self.dataset._build_resource_url()
+            self.dataset._build_delete_resource_url()
 
     def test_build_url_missing_key(self) -> None:
         """Test that missing key raises DeleteError."""
-        self.settings.primary_keys = ["id", "status"]
+        self.settings.delete.primary_keys = ["id", "status"]
         self.dataset.input = pd.DataFrame([{"id": 1}])
 
         with pytest.raises(DeleteError):
-            self.dataset._build_resource_url()
+            self.dataset._build_delete_resource_url()
 
     def test_post_init_raises_for_non_http_linked_service(self) -> None:
         """Test __post_init__ enforces HttpLinkedService type."""

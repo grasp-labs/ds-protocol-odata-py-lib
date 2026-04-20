@@ -23,7 +23,6 @@ Example:
     >>> settings = OdataDatasetSettings(
     ...     url="https://api.example.com/odata/Users",
     ...     top=100,
-    ...     primary_keys=["id"]
     ... )
     >>> dataset = OdataDataset(linked_service=linked_service, settings=settings)
     >>> dataset.read()
@@ -54,6 +53,11 @@ from requests import Response
 from ..enums import ResourceType
 
 logger = Logger.get_logger(__name__, package=True)
+
+
+@dataclass(kw_only=True)
+class DeleteSettings:
+    primary_keys: list[str]
 
 
 @dataclass(kw_only=True)
@@ -104,9 +108,9 @@ class OdataDatasetSettings(DatasetSettings):
     """
 
     url: str
-    primary_keys: list[str] | None = None
 
     read: ReadSettings | None = None
+    delete: DeleteSettings | None = None
 
 
 OdataDatasetSettingsType = TypeVar(
@@ -276,19 +280,12 @@ class OdataDataset(
 
         Returns:
             None: Updated entities (or echo of input) stored in self.output as pandas DataFrame.
-
-        Raises:
-            UpdateError: If primary_keys are not configured, input is invalid, serializer is not
-            configured, or HTTP request fails.
         """
         logger.info(f"Sending PATCH/PUT request to {self.settings.url}")
 
         if self.input is None or not isinstance(self.input, pd.DataFrame) or self.input.empty:
             logger.warning("No content data provided for update.")
             return
-
-        if not self.settings.primary_keys:
-            raise UpdateError("Primary keys must be provided for update.")
 
         logger.debug("Serializing data for update")
         if not self.serializer:
@@ -342,7 +339,7 @@ class OdataDataset(
             raise DeleteError("Data serializer not provided")
 
         try:
-            url = self._build_resource_url()
+            url = self._build_delete_resource_url()
 
             req = requests.Request(
                 method="DELETE",
@@ -456,7 +453,7 @@ class OdataDataset(
                     self.settings.url,
                 )
 
-    def _build_resource_url(self) -> str:
+    def _build_delete_resource_url(self) -> str:
         """
         Build the full OData resource URL for a specific entity using configured primary keys.
 
@@ -475,7 +472,7 @@ class OdataDataset(
         - Single key: `.../resource(id=123)`
         - Composite key: `.../resource(userPrincipalName='john.doe@example.com',tenantId=456)`
         """
-        if not self.settings.primary_keys:
+        if not self.settings.delete or not self.settings.delete.primary_keys:
             raise DeleteError("Primary keys must be provided to segment the URL.")
 
         try:
@@ -483,7 +480,7 @@ class OdataDataset(
                 f"{key}='{self.input.iloc[0][key]}'"
                 if isinstance(self.input.iloc[0][key], str)
                 else f"{key}={self.input.iloc[0][key]}"
-                for key in self.settings.primary_keys
+                for key in self.settings.delete.primary_keys
             )
         except KeyError as exc:
             raise DeleteError(f"Primary key {exc} not found in the payload.") from exc

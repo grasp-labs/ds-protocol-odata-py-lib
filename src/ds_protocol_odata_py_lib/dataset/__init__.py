@@ -13,7 +13,6 @@ Example:
     ...     linked_service=linked_service,
     ...     settings=OdataDatasetSettings(
     ...         url="https://example.com/api/people",
-    ...         primary_keys=["id"],
     ...     ),
     ...     id=uuid.uuid4(),
     ...     name="people",

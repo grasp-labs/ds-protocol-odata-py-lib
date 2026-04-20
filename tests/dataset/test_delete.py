@@ -15,7 +15,7 @@ import pytest
 import requests
 from ds_resource_plugin_py_lib.common.resource.dataset.errors import DeleteError
 
-from ds_protocol_odata_py_lib.dataset.odata import OdataDataset, OdataDatasetSettings
+from ds_protocol_odata_py_lib.dataset.odata import DeleteSettings, OdataDataset, OdataDatasetSettings
 
 
 class TestDeleteOperations:
@@ -25,10 +25,7 @@ class TestDeleteOperations:
         """Test delete() with empty input returns early."""
         with patch("ds_protocol_odata_py_lib.dataset.odata.isinstance", return_value=True):
             linked_service = Mock()
-            settings = OdataDatasetSettings(
-                url="https://example.com/api/people",
-                primary_keys=["id"],
-            )
+            settings = OdataDatasetSettings(url="https://example.com/api/people", delete=DeleteSettings(primary_keys=["id"]))
             dataset = OdataDataset(
                 linked_service=linked_service,
                 settings=settings,
@@ -43,7 +40,10 @@ class TestDeleteOperations:
         """Test delete() raises DeleteError when primary_keys not set."""
         with patch("ds_protocol_odata_py_lib.dataset.odata.isinstance", return_value=True):
             linked_service = Mock()
-            settings = OdataDatasetSettings(url="https://example.com/api/people")
+            settings = OdataDatasetSettings(
+                url="https://example.com/api/people",
+                delete=DeleteSettings(primary_keys=None),
+            )
             dataset = OdataDataset(
                 linked_service=linked_service,
                 settings=settings,
@@ -60,10 +60,7 @@ class TestDeleteOperations:
         """Test delete() raises DeleteError when serializer is None."""
         with patch("ds_protocol_odata_py_lib.dataset.odata.isinstance", return_value=True):
             linked_service = Mock()
-            settings = OdataDatasetSettings(
-                url="https://example.com/api/people",
-                primary_keys=["id"],
-            )
+            settings = OdataDatasetSettings(url="https://example.com/api/people", delete=DeleteSettings(primary_keys=["id"]))
             dataset = OdataDataset(
                 linked_service=linked_service,
                 settings=settings,
@@ -82,10 +79,7 @@ class TestDeleteOperations:
         with patch("ds_protocol_odata_py_lib.dataset.odata.isinstance", return_value=True):
             linked_service = Mock()
             linked_service.settings = Mock(headers={"Authorization": "Bearer x"})
-            settings = OdataDatasetSettings(
-                url="https://example.com/api/people",
-                primary_keys=["id"],
-            )
+            settings = OdataDatasetSettings(url="https://example.com/api/people", delete=DeleteSettings(primary_keys=["id"]))
             dataset = OdataDataset(
                 linked_service=linked_service,
                 settings=settings,
@@ -108,10 +102,7 @@ class TestDeleteOperations:
         with patch("ds_protocol_odata_py_lib.dataset.odata.isinstance", return_value=True):
             linked_service = Mock()
             linked_service.settings = Mock(headers={"Authorization": "Bearer x"})
-            settings = OdataDatasetSettings(
-                url="https://example.com/api/people",
-                primary_keys=["id"],
-            )
+            settings = OdataDatasetSettings(url="https://example.com/api/people", delete=DeleteSettings(primary_keys=["id"]))
             dataset = OdataDataset(
                 linked_service=linked_service,
                 settings=settings,

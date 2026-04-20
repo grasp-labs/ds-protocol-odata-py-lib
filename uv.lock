@@ -516,7 +516,6 @@ dependencies = [
     { name = "ds-protocol-http-py-lib" },
     { name = "ds-resource-plugin-py-lib" },
     { name = "requests" },
-    { name = "types-requests" },
 ]
 
 [package.optional-dependencies]
@@ -535,6 +534,7 @@ dev = [
     { name = "sphinx-autoapi" },
     { name = "sphinx-material" },
     { name = "twine" },
+    { name = "types-requests" },
 ]
 docs = [
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -572,7 +572,7 @@ requires-dist = [
     { name = "sphinx-material", marker = "extra == 'dev'", specifier = ">=0.0.35" },
     { name = "sphinx-material", marker = "extra == 'docs'", specifier = ">=0.0.35" },
     { name = "twine", marker = "extra == 'dev'", specifier = ">=4.0.0" },
-    { name = "types-requests", specifier = ">=2.32.0,<3.0.0" },
+    { name = "types-requests", marker = "extra == 'dev'", specifier = ">=2.32.0,<3.0.0" },
 ]
 provides-extras = ["dev", "test", "docs"]
 

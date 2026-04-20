@@ -44,7 +44,7 @@ def main() -> None:
         linked_service=linked_service,
         settings=OdataDatasetSettings(
             url="https://services.odata.org/TripPinRESTierService/People",
-            primary_keys=["UserName"],
+            # primary_keys=["UserName"],
         ),
         id=uuid.uuid4(),
         description="Update a person in TripPin",

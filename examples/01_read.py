@@ -51,7 +51,6 @@ def main() -> None:
                 # filter="FirstName eq 'Scott'",
                 # expand="Trips($filter=Name eq 'Trip in US')",
             ),
-            # primary_keys = ["UserName"]
         ),
         id=uuid.uuid4(),
         description="A sample dataset",
