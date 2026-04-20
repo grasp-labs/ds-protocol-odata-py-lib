@@ -468,7 +468,7 @@ class OdataDataset(
         - Single key: `.../resource(id=123)`
         - Composite key: `.../resource(userPrincipalName='john.doe@example.com',tenantId=456)`
         """
-        if not self.settings.delete or not self.settings.delete.primary_keys:
+        if not self.settings.delete:
             raise DeleteError("Primary keys must be provided to segment the URL.")
 
         try:

@@ -48,10 +48,7 @@ def main() -> None:
     dataset = OdataDataset(
         linked_service=linked_service,
         settings=OdataDatasetSettings(
-            url="https://services.odata.org/TripPinRESTierService/Airlines",
-            delete=DeleteSettings(
-            primary_keys=["AirlineCode"]
-            )
+            url="https://services.odata.org/TripPinRESTierService/Airlines", delete=DeleteSettings(primary_keys=["AirlineCode"])
         ),
         id=uuid.uuid4(),
         name="sample::dataset",

@@ -39,10 +39,7 @@ def main() -> None:
     dataset = OdataDataset(
         linked_service=linked_service,
         settings=OdataDatasetSettings(
-            url="https://services.odata.org/TripPinRESTierService/People",
-            delete=DeleteSettings(
-            primary_keys=["UserName"]
-            )
+            url="https://services.odata.org/TripPinRESTierService/People", delete=DeleteSettings(primary_keys=["UserName"])
         ),
         id=uuid.uuid4(),
         name="sample::dataset",
