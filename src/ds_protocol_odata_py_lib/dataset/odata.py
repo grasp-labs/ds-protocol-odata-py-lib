@@ -296,6 +296,7 @@ class OdataDataset(
             req = requests.Request(
                 method="PATCH",
                 url=self.settings.url,
+                headers=self.linked_service.settings.headers,
                 data=payload,
             )
             prepared = self.linked_service.connection.session.prepare_request(req)
