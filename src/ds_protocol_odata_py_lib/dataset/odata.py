@@ -362,7 +362,7 @@ class OdataDataset(
         Raises:
             NotSupportedError
         """
-        raise NotSupportedError("List operation is not supported for Odata datasets")
+        raise NotSupportedError("Rename operation is not supported for Odata datasets")
 
     def list(self) -> NoReturn:
         """
