@@ -333,11 +333,6 @@ class OdataDataset(
         if self.input is None or not isinstance(self.input, pd.DataFrame) or self.input.empty:
             logger.warning("No content data provided for delete.")
             return
-
-        logger.debug("Serializing data for write")
-        if not self.serializer:
-            raise DeleteError("Data serializer not provided")
-
         try:
             url = self._build_delete_resource_url()
 
