@@ -315,18 +315,18 @@ class OdataDataset(
 
     def delete(self) -> None:
         """
-        Delete entities via OData DELETE request.
+        Delete an entity via OData DELETE request.
 
-        For each entity in self.input, constructs an OData key segment URL using the
-        primary_keys fields and sends a DELETE request. The response is deserialized
-        and stored in self.output.
+        Constructs a single OData key segment URL from the current input using the
+        configured primary_keys fields and sends one DELETE request. The response is
+        deserialized and stored in self.output.
 
         Returns:
-            None: Server response stored in self.output as pandas DataFrame.
+            None: Server response (or input fallback) stored in self.output as pandas DataFrame.
 
         Raises:
             DeleteError: If primary_keys are not configured, required primary key columns are missing
-            from input, serializer is not configured, or HTTP request fails.
+            from input, or the HTTP request fails.
         """
         logger.info(f"Sending DELETE request to {self.settings.url}")
 
